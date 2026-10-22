@@ -1,0 +1,35 @@
+name: Build and test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: macos-15
+    timeout-minutes: 30
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show toolchain
+        run: xcodebuild -version
+      - name: Test the API and recipe core
+        run: ./scripts/test.sh
+      - name: Build for iOS Simulator
+        run: ./scripts/build.sh
+      - name: Test offline flows and persistence
+        run: ./scripts/test-ui.sh 'platform=iOS Simulator,name=iPhone 16,OS=18.5'
+      - name: Retain UI test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: simulator-test-results
+          path: build/DerivedData/Logs/Test/*.xcresult
+          if-no-files-found: ignore
+          retention-days: 7
