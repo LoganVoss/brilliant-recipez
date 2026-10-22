@@ -1,33 +1,32 @@
 # Contributing
 
-Brilliant! Recipez is a starting point for builders. Improvements that make the app clearer, easier to test, or easier to adapt are welcome.
+Brilliant! Recipez is a foundation for builders. Contributions that make it easier to use, test, and extend are welcome.
 
-## Start small
+## Start here
 
-Open an issue for a substantial change so the scope can be discussed. For a focused fix, a pull request with a clear explanation is enough. Describe the user-visible problem, the resulting behavior, and how you checked it. Include screenshots for interface changes.
-
-Use the **BrilliantRecipez** scheme in `BrilliantRecipez.xcodeproj`. Use Xcode 16 or newer; the app targets iOS 17+. Core functionality lives in the local `RecipeCore` Swift package.
+Use Xcode 27 or newer and the **BrilliantRecipez** scheme. The app targets iOS 26+. Recipe generation requires an available Apple Intelligence model; native image prompting requires iOS 27+ and image support. The sample and automated fixtures do not need a live model.
 
 ```sh
 ./scripts/verify.sh
+./scripts/test-ui.sh
 ```
 
-Run `./scripts/test-ui.sh` when changing a flow covered by the UI tests. See the scripts for simulator selection. Use the offline demo and mocked transport for repeatable tests; CI should never require a live API key.
+Run the UI suite when changing a covered flow. See [validation notes](docs/VALIDATION.md) for current checks and limits. If you evaluate a real model, record the device, OS, inputs, and outcome separately from fixture tests.
 
 ## Keep the foundation useful
 
-- Keep provider calls behind the core service boundary and iOS-specific code in the app.
-- Preserve manual ingredient entry and a clearly labeled offline demo.
-- Explain changes to model defaults, API payloads, dependencies, costs, and data handling.
-- Give unavailable models, malformed responses, cancellation, and missing credentials useful failure states.
-- Add meaningful tests for behavior changes. Include regression coverage for a bug when practical.
-- Keep accessible labels, Dynamic Type, and readable contrast in mind when editing the interface.
-- Update documentation when setup, storage, privacy, or compatibility changes.
+- Keep platform model and Vision calls in the app, and shared validation in `RecipeCore`.
+- Preserve on-device processing, manual ingredient entry, ingredient review, and a clearly labeled fixed sample.
+- Handle unsupported hardware, unavailable models, refusals, malformed output, and cancellation without losing the ingredient draft.
+- Keep copy direct: name the action, input, or result. Use **“Turn what you have into something you’ll love.”** as the home headline.
+- Keep accessible labels, Dynamic Type, and readable contrast.
+- Add meaningful tests for changed behavior, using synthetic inputs.
+- Update compatibility, privacy, and setup documentation when implementation changes.
 
-Do not commit API keys, `.env` files, signing identities, provisioning profiles, account screenshots, personal photos, or private prompts. Use synthetic fixtures. If a test uses a live provider during local development, say so in the pull request without including credentials or sensitive content.
+Do not commit signing identities, provisioning profiles, private photos, personal prompts, credentials, or account screenshots. System model weights are not part of this repository.
 
 ## Pull requests
 
-Keep each pull request focused. State what changed and why, list the checks you actually ran, and call out anything you could not verify. Avoid presenting a mocked API test as proof that a live model works.
+Open an issue before a substantial redesign. For focused fixes, submit a pull request describing the problem, resulting behavior, and checks actually run. Include screenshots for interface changes and state what remains unverified. A fixture or simulator pass is not proof of successful generation on a physical device.
 
-Contributions are provided under the repository's [MIT License](LICENSE). Use assets and code that you have permission to contribute, and include any required attribution.
+Contributions use the repository’s [MIT License](LICENSE). Include attribution and permissions for any added assets or code.

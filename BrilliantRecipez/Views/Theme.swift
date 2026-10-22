@@ -1,25 +1,36 @@
 import SwiftUI
 
+/// Warm stone, dark timber and a small amount of brass. Native materials remain native.
 enum Theme {
-    static let green = Color(red: 0.09, green: 0.25, blue: 0.21)
-    static let tint = Color(uiColor: UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.90, green: 0.94, blue: 0.50, alpha: 1) : UIColor(red: 0.09, green: 0.25, blue: 0.21, alpha: 1) })
-    static let cream = Color(uiColor: UIColor { $0.userInterfaceStyle == .dark ? UIColor.systemGroupedBackground : UIColor(red: 0.98, green: 0.965, blue: 0.93, alpha: 1) })
-    static let paper = Color(uiColor: .secondarySystemGroupedBackground)
-    static let citrus = Color(red: 0.90, green: 0.94, blue: 0.50)
-    static let muted = Color.secondary
+    static let green = Color(red: 0.10, green: 0.15, blue: 0.13)
+    static let tint = Color(uiColor: UIColor { $0.userInterfaceStyle == .dark
+        ? UIColor(red: 0.84, green: 0.80, blue: 0.70, alpha: 1)
+        : UIColor(red: 0.10, green: 0.15, blue: 0.13, alpha: 1) })
+    static let cream = Color(uiColor: UIColor { $0.userInterfaceStyle == .dark
+        ? UIColor(red: 0.075, green: 0.085, blue: 0.08, alpha: 1)
+        : UIColor(red: 0.97, green: 0.96, blue: 0.94, alpha: 1) })
+    static let paper = Color(uiColor: UIColor { $0.userInterfaceStyle == .dark
+        ? UIColor(red: 0.12, green: 0.135, blue: 0.125, alpha: 1)
+        : UIColor(red: 0.995, green: 0.99, blue: 0.975, alpha: 1) })
+    static let brass = Color(uiColor: UIColor { $0.userInterfaceStyle == .dark
+        ? UIColor(red: 0.75, green: 0.67, blue: 0.52, alpha: 1)
+        : UIColor(red: 0.47, green: 0.39, blue: 0.26, alpha: 1) })
+    static let line = Color.primary.opacity(0.12)
 }
 
 struct PrimaryButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label.font(.headline).frame(maxWidth: .infinity).padding(.vertical, 17)
-            .foregroundStyle(.white).background(Theme.green, in: RoundedRectangle(cornerRadius: 18))
-            .opacity(configuration.isPressed ? 0.75 : 1)
+        configuration.label.font(.subheadline.weight(.semibold))
+            .frame(maxWidth: .infinity).padding(.vertical, 19)
+            .foregroundStyle(Theme.cream).background(Theme.tint, in: RoundedRectangle(cornerRadius: 16))
+            .opacity(!isEnabled ? 0.35 : (configuration.isPressed ? 0.75 : 1))
     }
 }
 
 struct Eyebrow: View {
     let text: String
-    var body: some View { Text(text.uppercased()).font(.caption.weight(.bold)).tracking(2) }
+    var body: some View { Text(text.uppercased()).font(.caption2.weight(.medium)).tracking(2) }
 }
 
 struct BowlArtwork: View {

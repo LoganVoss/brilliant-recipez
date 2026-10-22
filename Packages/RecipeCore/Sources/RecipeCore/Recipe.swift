@@ -50,8 +50,8 @@ public struct Recipe: Identifiable, Codable, Equatable, Sendable {
     /// A completely offline example, clearly distinguished from a generated recipe.
     public static let demo = Recipe(
         id: UUID(uuidString: "0AB6D604-2C1E-477E-B020-5C1AA1DD7F2F")!,
-        title: "Sunshine chickpea bowls",
-        summary: "Warm chickpeas, juicy tomatoes, and silky spinach. A bright little bowl built from everyday ingredients.",
+        title: "Chickpea and spinach bowls",
+        summary: "Chickpeas, tomatoes, and spinach cooked in one pan with lemon.",
         cuisine: "Mediterranean inspired",
         minutes: 20,
         servings: 2,
@@ -84,7 +84,7 @@ public struct RecipePreferences: Equatable, Sendable {
     public init(
         servings: Int = 2,
         maximumMinutes: Int = 30,
-        direction: String = "Surprise me",
+        direction: String = "Any style",
         includeStaples: Bool = true
     ) {
         self.servings = servings

@@ -2,6 +2,8 @@
 set -euo pipefail
 source "$(dirname "$0")/common.sh"
 
-# Request construction, response decoding, error handling and model tests.
-# These tests use local fixtures and never require an API key or network.
+require_xcode
+
+# Ingredient parsing, generated output validation, local storage and error mapping.
+# These tests use fixtures; they do not call the Apple Intelligence model.
 swift test --package-path "$REPO_ROOT/Packages/RecipeCore"

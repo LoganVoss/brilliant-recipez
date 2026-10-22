@@ -16,17 +16,18 @@ def version(runtime):
     match = re.search(r"iOS-(\d+)-(\d+)", runtime)
     return tuple(map(int, match.groups())) if match else (0, 0)
 phones = [device for runtime, group in sorted(devices.items(), key=lambda item: version(item[0]), reverse=True)
-          if version(runtime) >= (17, 0) and version(runtime)[0] <= sdk_major
+          if version(runtime) >= (26, 0) and version(runtime)[0] <= sdk_major
           for device in group if "iPhone" in device["name"]]
 if not phones:
-    sys.exit("No compatible iOS 17+ iPhone simulator. Install a runtime supported by the selected Xcode in Xcode Settings > Components.")
+    sys.exit("No compatible iOS 26+ iPhone simulator. Install a runtime supported by the selected Xcode in Xcode Settings > Components.")
 phones.sort(key=lambda item: item["state"] != "Booted")
 print(phones[0]["udid"])
 ' "$simulator_sdk")"
   destination="platform=iOS Simulator,id=$simulator_id"
 fi
 
-# Use ad-hoc signing so the tests exercise real simulator Keychain behavior.
+# UI testing forces Apple Intelligence unavailable for deterministic coverage.
+# Sample-recipe tests are fixtures, not evidence of a live model generation.
 xcodebuild \
   -project "$REPO_ROOT/BrilliantRecipez.xcodeproj" \
   -scheme BrilliantRecipez \

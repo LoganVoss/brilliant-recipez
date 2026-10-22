@@ -4,7 +4,7 @@ source "$(dirname "$0")/common.sh"
 require_xcode
 
 # Build for iOS Simulator without a signing account.
-# Ad-hoc signing is required for Keychain access in the installed simulator app.
+# Use ad-hoc signing for the simulator app.
 # Override BUILD_CONFIGURATION or DERIVED_DATA_PATH when needed.
 xcodebuild \
   -project "$REPO_ROOT/BrilliantRecipez.xcodeproj" \

@@ -15,6 +15,7 @@ xcuserdata/
 .env.*
 !.env.example
 Secrets.xcconfig
+Config/Signing.local.xcconfig
 *.p12
 *.mobileprovision
 *.cer

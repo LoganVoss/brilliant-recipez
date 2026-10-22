@@ -1,79 +1,73 @@
 # Architecture
 
-Brilliant! Recipez separates the cooking flow from the AI provider and the iOS interface. The goal is a small foundation that a builder can understand, run without credentials, and extend.
+Brilliant! Recipez separates SwiftUI, Apple’s platform APIs, and a small Foundation-only core. Recipe generation and photo recognition stay on the device.
 
 ## Boundaries
 
 | Layer | Responsibility |
 | --- | --- |
-| SwiftUI app | Ingredient input and review, preferences, request state, recipe presentation, saved recipes, Settings, and sharing. |
-| iOS integrations | Camera and photo selection, image preparation, Keychain access, and device-local storage. |
-| `RecipeCore` | Foundation data types, request construction, provider transport, response decoding, validation, and deterministic fixtures. |
-| xAI | Live ingredient recognition and recipe generation. Requires the builder's key, model access, and credits. |
+| SwiftUI app | Ingredient review, preferences, progress and errors, recipe display, saved recipes, availability status, and sharing. |
+| `AppleRecipeService` | Check runtime availability, prompt the on-device `SystemLanguageModel`, request typed output, and map failures to recoverable messages. |
+| `LocalPhotoService` | Use native on-device image prompting on supported iOS 27+ models; otherwise use local Vision classification and text recognition. |
+| `RecipeCore` | Recipe and preference types, ingredient normalization, validation, `FoodSuggestionFilter`, and deterministic fixtures. |
+| Local persistence | Save recipes in the app container. No sync server. |
 
-The core is a local Swift package, with no UI framework dependency. The app connects it to SwiftUI state and platform services. `RecipeService` defines the provider boundary; `GrokService` implements it. An injected `URLSession` lets tests intercept requests with `URLProtocol` without reaching the network or handling a real key. `Recipe`, `RecipeIngredient`, `RecipePreferences`, `IngredientNormalizer`, and `GrokConfiguration` are the main shared types.
+The app uses Apple’s Foundation Models framework, not a hosted provider SDK. It creates a session with the on-device `SystemLanguageModel`; it does not configure Private Cloud Compute, external model providers, or a network fallback. Apple describes this model in the [SystemLanguageModel reference](https://developer.apple.com/documentation/foundationmodels/systemlanguagemodel).
 
 ## Data flow
 
 ```mermaid
 flowchart TD
-    A[Camera or selected photo] --> B[Resize and JPEG re-encode]
-    B --> C[Live vision request to xAI]
-    C --> D[Decode ingredient result]
-    D --> E[Review and edit ingredients]
-    F[Manual ingredient entry] --> E
-    E --> G[Preferences and allowed staples]
-    G --> H[Live recipe request to xAI]
-    H --> I[Decode and validate recipe]
-    I --> J[Recipe detail]
-    K[Explicit offline demo] --> J
-    J --> L[Local saved recipes]
-    J --> M[Plain-text share sheet]
+    A[Camera or selected photo] --> B[Resize and re-encode locally]
+    B --> C{On-device image model available?}
+    C -->|iOS 27+ and supported| D[Apple image prompting]
+    C -->|Otherwise| E[Apple Vision classification and OCR]
+    D --> F[Review ingredient suggestions]
+    E --> F
+    G[Manual ingredient entry] --> F
+    F --> H[Servings, time, style, pantry basics]
+    H --> I[On-device typed recipe generation]
+    I --> J[Validate recipe]
+    J --> K[Recipe detail]
+    L[Explicit fixed sample] --> K
+    K --> M[Local saved recipes]
+    K --> N[User-selected share destination]
 ```
 
-The user reviews detected ingredients before requesting a recipe. Manual entry remains useful when the camera is unavailable or the selected model cannot process images. It still needs a live API key for AI recipe generation. Only the fixed demo is a no-key substitute for the full flow.
+A photo is an optional input aid. Recognition never silently proceeds to cooking instructions: the user reviews the list first. `LocalPhotoService` uses native image prompting when available and falls back to Vision when that capability or the model is unavailable. A refusal or other generation error is surfaced rather than silently rerouted.
 
-## Provider adapter
+The Vision fallback runs classification and English OCR off the main actor, then passes sufficiently confident results through `FoodSuggestionFilter`. That filter matches a limited vocabulary of food names and short product labels. It ignores generic labels, uncertain wild-food categories, allergen statements, and labels for prepared foods rather than inferring their contents. This is a conservative suggestion aid, not a complete food detector. Keep manual entry available when a photo produces no useful suggestions.
 
-The implementation uses Foundation `URLSession` and the documented Chat Completions format. A recipe request includes ingredients, selected staples, and cooking preferences. A vision request sends prepared JPEG data in a base64 data URL. Both request JSON output; the response's text is decoded into application types before use.
+## Model integration
 
-Text and vision models are configured independently and initially use `grok-4.7`. Keep the identifiers in configuration rather than distributing credentials in source. A valid identifier is not proof that the account can use that model or that it supports photos.
+The app requires iOS 26+. Native image prompting uses the iOS 27+ attachment API behind an availability check and model capability check. The [multimodal prompting guide](https://developer.apple.com/documentation/foundationmodels/analyzing-images-with-multimodal-prompting) describes the newer API.
 
-The endpoint is a deliberate compatibility boundary: xAI currently describes Chat Completions as legacy. A migration to Responses should change the provider adapter, its request/response types, and transport fixtures together. Responses uses `input` instead of `messages`, different image parts, and an `output` array instead of `choices[0].message.content`. Do not simply change the URL. See the [official comparison](https://docs.x.ai/developers/model-capabilities/text/comparison).
+Recipe generation uses `@Generable` types to constrain the response shape, then converts that output into the existing `Recipe` model and validates it. Recipe prompts request English output and include only the reviewed ingredients, preferences, and allowed staples. The system model and its assets are managed by the OS; no weights are bundled or downloaded by this app.
 
-JSON output improves parsing reliability; it does not establish factual correctness. See xAI's [structured-output documentation](https://docs.x.ai/developers/model-capabilities/text/structured-outputs).
+Runtime availability is separate from OS availability. Check the model before generation and handle unsupported hardware, Apple Intelligence being disabled, and model assets not being ready. Language support, model refusals, context limits, and generation failures also need recoverable states. Do not turn a failed request into an unlabeled sample. See Apple’s [generation guide](https://developer.apple.com/documentation/foundationmodels/generating-content-and-performing-tasks-with-foundation-models).
 
-## Validation and failure behavior
+## Validation
 
-The core accepts at most 30 reviewed ingredients, 80 characters per ingredient, 1–12 servings, 5–180 minutes, and 300 characters of cooking direction. It rejects image data above 8 MiB and responses above 1 MiB.
+The core accepts 1–30 reviewed ingredients of up to 80 characters each, 1–12 servings, 5–180 minutes, and a meal preference of up to 300 characters. Recipes must have usable titles, summaries, ingredients, and steps; respect requested servings and maximum time; and use names from the reviewed ingredient list or selected pantry staples. Duplicate, unknown, or malformed ingredients are rejected. Pantry basics are water, salt, black pepper, and olive oil.
 
-Recipe validation rejects empty fields or steps, excessive sizes, serving/time mismatches, duplicate or unknown ingredient names, and recipes that use none of the reviewed ingredients. Names must match the normalized reviewed list or permitted staples: water, salt, black pepper, and olive oil. JSON wrapped in a Markdown fence is tolerated; truncated or malformed results are rejected.
+These checks catch structural errors and some ingredient drift. They cannot prove that natural-language steps use every ingredient correctly, that a cooking time is safe, or that a recipe meets a dietary need. Model output stays untrusted even when guided generation succeeds. Preserve the input draft on errors so the user can edit and retry.
 
-HTTP authentication, access, unavailable-model, rate-limit, and server errors are mapped to safe messages. Cancellation propagates. The client does not log keys or raw responses and does not automatically retry requests. A failed live request never becomes unlabeled demo content.
+## Images and storage
 
-Validation is intentionally narrower than cooking expertise. The prototype cannot machine-prove that every step uses the correct ingredient, that cooking times are sufficient, or that a meal is safe for a particular allergy. “Vegetarian,” time, servings, and similar preferences need semantic testing in addition to schema checks.
+Photos are resized to a maximum dimension of 1,600 pixels and re-encoded as JPEG for local analysis. Only the selected image is processed. The app does not persist the source photo in the recipe collection.
 
-Errors and cancellation belong in the user flow. Show a recoverable failure, preserve the user's ingredients, and let them retry intentionally. Avoid silently retrying expensive requests indefinitely or automatically switching to an unknown model with different pricing.
-
-## Images and local data
-
-Imported images are resized to a maximum dimension of 1,600 pixels and re-encoded as JPEG before upload. Re-encoding avoids forwarding original file metadata, but visible identifying information remains in the pixels. The app sends only the selected image for a recognition request; it does not upload the entire photo library.
-
-The API key uses the iOS Keychain’s `WhenUnlockedThisDeviceOnly` accessibility class. Model settings use `UserDefaults`; ingredient input and cooking preferences stay in app state. Saved recipes use `Application Support/BrilliantRecipez/recipes.json`, written atomically with file protection. If the collection cannot be decoded, the app preserves the file and pauses saves rather than overwriting it. The project has no cloud sync service. The operating system's backup behavior is separate from app-level networking. See [PRIVACY.md](PRIVACY.md).
+Saved recipes use `Application Support/BrilliantRecipez/recipes.json`, written atomically with file protection. If the file cannot be decoded, the app preserves it and pauses saves instead of overwriting it. Existing recipes remain readable; updating the model integration does not regenerate or relabel their content. OS backup behavior is separate from app-level storage; see [PRIVACY.md](PRIVACY.md).
 
 ## Extension points
 
-- **Another provider:** implement the core service boundary and preserve the app's recipe and ingredient types. Add fixtures for success, rejection, malformed content, and unavailable image models.
-- **Responses migration:** update the adapter and test both text and image bodies, response parsing, error mapping, and storage flags.
-- **Production backend:** move a shared service credential to a server, authenticate users, and add request quotas, spending limits, and abuse controls. Do not ship a shared key inside an iOS binary.
-- **Better recipe quality:** add repeatable evaluations for ingredient fidelity, substitutions, units, timing, and preference adherence. Keep human review of dietary and cooking claims.
-- **Persistence:** add a versioned store and migration tests before changing saved recipe shape. Define export and deletion behavior before adding sync.
-- **More platform features:** retain the pure core while expanding the iPad interface, accessibility, localization, or meal planning.
+- **Recipe quality:** evaluate ingredient fidelity, units, timing, preference adherence, and refusal behavior with repeated real-device runs.
+- **Photo recognition:** improve the local fallback with a food-specific Core ML model, preserving review and uncertainty.
+- **Persistence:** add schema versions and migration tests before changing saved recipe shapes.
+- **App features:** add localization, iPad layouts, accessibility refinements, grocery lists, or meal planning.
+- **Model changes:** test new OS model revisions rather than assuming identical output across system updates.
 
-Recipe image generation is outside this prototype's scope. Adding it should be a separate service with its own credentials policy, pricing disclosure, failure state, and tests.
+Adding cloud services changes this project’s privacy and offline behavior. Update the interface, privacy manifest, documentation, and tests together if a fork makes that choice.
 
-## Verification strategy
+## Verification
 
-Core tests run against deterministic fixtures and mocked transport. Simulator compilation checks the iOS integration. UI tests exercise selected flows without an API key. These are useful separate signals; none validates the provider's current account permissions or the culinary quality of a live response.
-
-The repository's scripts document the checks and packaging process. New behavior should add meaningful tests at the relevant boundary. Do not store keys, user photos, provider account data, or private prompts in fixtures.
+Core fixtures verify deterministic behavior. UI tests use controlled model availability and sample output, while simulator compilation checks platform API integration. These do not establish the quality or performance of Apple’s live model on a physical device. Record device, OS, model availability, test inputs, and actual results when evaluating generation. Use synthetic photos and prompts in committed fixtures.

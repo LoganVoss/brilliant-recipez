@@ -9,7 +9,7 @@ struct ComposerView: View {
     @State private var entry = ""
     @State private var servings = 2
     @State private var minutes = 30
-    @State private var direction = "Surprise me"
+    @State private var direction = "Any style"
     @State private var includeStaples = true
     @State private var finishedRecipe: Recipe?
     @State private var didIdentify = false
@@ -18,6 +18,7 @@ struct ComposerView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Group {
                 if let photo, let image = UIImage(data: photo) {
                     Section {
                         Image(uiImage: image).resizable().scaledToFit().frame(maxHeight: 230)
@@ -27,15 +28,15 @@ struct ComposerView: View {
                                 let merged = IngredientNormalizer.normalize(ingredients + detected)
                                 ingredients = Array(merged.prefix(30))
                                 didIdentify = true
-                                if merged.count > 30 { model.errorMessage = "The combined list exceeded 30 ingredients. Your existing ingredients were kept first. Review the list before cooking." }
+                                if merged.count > 30 { model.errorMessage = "The list is limited to 30 ingredients. Your existing ingredients were kept first." }
                             } } label: {
-                                Label("Identify with Grok", systemImage: "sparkles")
+                                Label("Find ingredients", systemImage: "viewfinder")
                             }.disabled(model.busyMessage != nil)
                         } else {
-                            Label(ingredients.isEmpty ? "No clear ingredients found. Add them below." : "Photo reviewed. Check the list below.", systemImage: "checkmark.circle").foregroundStyle(.secondary)
+                            Label(ingredients.isEmpty ? "No clear ingredients found. Add them below." : "Check the suggested ingredients below.", systemImage: "checkmark.circle").foregroundStyle(.secondary)
                         }
-                    } header: { Text("Your ingredients, in focus") } footer: {
-                        Text("Identify sends this photo to xAI using your API key. Only upload images you want to share. You can also type ingredients below without uploading the photo.")
+                    } header: { Text("Photo") } footer: {
+                        Text("Photos are analyzed on this device. Suggestions can miss ingredients; check the list below.")
                     }
                 }
                 Section {
@@ -47,27 +48,37 @@ struct ComposerView: View {
                     }
                     ForEach(ingredients, id: \.self) { ingredient in
                         HStack {
-                            Image(systemName: "checkmark").foregroundStyle(Theme.green)
+                            Image(systemName: "checkmark").foregroundStyle(Theme.tint)
                             Text(ingredient)
                             Spacer()
                             Button { ingredients.removeAll { $0 == ingredient } } label: { Image(systemName: "minus.circle").foregroundStyle(.secondary) }
                                 .buttonStyle(.borderless).accessibilityLabel("Remove \(ingredient)")
                         }
                     }
-                } header: { Text("Review your ingredients · \(ingredients.count)") } footer: {
-                    Text("Add up to 30 ingredients, separated by commas or new lines. Correct anything the camera missed before creating your recipe.")
+                } header: { Text("Ingredients · \(ingredients.count)") } footer: {
+                    Text("Separate ingredients with commas. Add or remove items before creating a recipe.")
                 }
                 Section {
                     Stepper("\(servings) servings", value: $servings, in: 1...12)
-                    Picker("Time budget", selection: $minutes) {
+                    Picker("Ready in", selection: $minutes) {
                         ForEach([15, 20, 30, 45, 60], id: \.self) { Text("\($0) minutes").tag($0) }
                     }
-                    Picker("In the mood for", selection: $direction) {
-                        ForEach(["Surprise me", "One-pan comfort", "Fresh & bright", "Mediterranean-inspired", "Quick & cozy"], id: \.self) { Text($0).tag($0) }
+                    Picker("Style", selection: $direction) {
+                        ForEach(["Any style", "One pan", "Salad", "Mediterranean", "Quick meal"], id: \.self) { Text($0).tag($0) }
                     }
                     Toggle("Include pantry basics", isOn: $includeStaples)
-                } header: { Text("Make it yours") } footer: {
-                    Text("Pantry basics: olive oil, salt, black pepper, and water. These are optional additions, never items claimed to be in your photo.")
+                } header: { Text("Preferences") } footer: {
+                    Text("Pantry basics: olive oil, salt, black pepper, and water.")
+                }
+                }.disabled(model.busyMessage != nil)
+                if !model.availability.isAvailable {
+                    Section {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(model.availability.title).font(.subheadline.weight(.medium))
+                            Text(model.availability.message).font(.footnote).foregroundStyle(.secondary)
+                        }
+                        Button("View Settings") { model.cancel(); dismiss(); model.selectedTab = 2 }
+                    }
                 }
                 Section {
                     if let message = model.busyMessage {
@@ -82,22 +93,23 @@ struct ComposerView: View {
                             model.generate(ingredients: ingredients, preferences: RecipePreferences(servings: servings, maximumMinutes: minutes, direction: direction, includeStaples: includeStaples)) {
                                 finishedRecipe = $0
                             }
-                        } label: { Label("Make something brilliant", systemImage: "bolt.fill") }
+                        } label: { Label("Create recipe", systemImage: "bolt.fill") }
                             .buttonStyle(PrimaryButtonStyle()).disabled(ingredients.isEmpty && entry.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                             .listRowInsets(EdgeInsets()).listRowBackground(Color.clear)
                             .accessibilityIdentifier("generateRecipe")
                     }
                 } footer: {
-                    Text("Creating a recipe sends your ingredient list and preferences to xAI and may incur API charges. AI can make mistakes; check ingredients, allergens, and cooking instructions.")
+                    Text("Check generated recipes for allergens and safe cooking instructions.")
                 }
             }
             .scrollContentBackground(.hidden).background(Theme.cream)
-            .navigationTitle("A fresh start").navigationBarTitleDisplayMode(.inline)
+            .navigationTitle("Ingredients").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { model.cancel(); dismiss() } } }
             .interactiveDismissDisabled(model.busyMessage != nil)
             .sheet(item: $finishedRecipe) { RecipeDetailView(recipe: $0) }
+            .onAppear { model.refreshAvailability() }
             .onDisappear { model.cancel() }
-            .alert("Couldn’t finish this recipe", isPresented: Binding(get: { model.errorMessage != nil && finishedRecipe == nil }, set: { if !$0 { model.errorMessage = nil } })) {
+            .alert("Unable to continue", isPresented: Binding(get: { model.errorMessage != nil && finishedRecipe == nil }, set: { if !$0, model.errorMessage != nil { model.errorMessage = nil } })) {
                 Button("OK", role: .cancel) { model.errorMessage = nil }
             } message: { Text(model.errorMessage ?? "") }
         }

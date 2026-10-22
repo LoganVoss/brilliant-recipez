@@ -2,7 +2,7 @@
 set -euo pipefail
 source "$(dirname "$0")/common.sh"
 
-# Package tracked source only, so API keys, local data, and build output cannot
+# Package tracked source only, so local signing settings, data and build output cannot
 # accidentally enter a release bundle. Commit intended changes before running.
 output_path="${1:-$(dirname "$REPO_ROOT")/BrilliantRecipez-source.zip}"
 if [[ "$output_path" != /* ]]; then

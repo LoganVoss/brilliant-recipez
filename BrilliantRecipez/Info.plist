@@ -23,7 +23,7 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Photograph food ingredients to create recipe ideas. Your selected photo is sent to xAI only when you tap Identify with Grok.</string>
+	<string>Take photos of ingredients to suggest recipes. Photos are analyzed on this device.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
