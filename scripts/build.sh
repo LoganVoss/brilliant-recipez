@@ -1,16 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
-source "$(dirname "$0")/common.sh"
-require_xcode
-
-# Build for iOS Simulator without a signing account.
-# Use ad-hoc signing for the simulator app.
-# Override BUILD_CONFIGURATION or DERIVED_DATA_PATH when needed.
-xcodebuild \
-  -project "$REPO_ROOT/BrilliantRecipez.xcodeproj" \
-  -scheme BrilliantRecipez \
-  -configuration "${BUILD_CONFIGURATION:-Debug}" \
+repo_root="$(cd "$(dirname "$0")/.." && pwd)"
+if [[ -z "${DEVELOPER_DIR:-}" && -d /Applications/Xcode.app/Contents/Developer ]]; then
+  export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+fi
+xcodebuild -project "$repo_root/RecipeSnap.xcodeproj" \
+  -scheme RecipeSnap -configuration Debug \
   -destination 'generic/platform=iOS Simulator' \
-  -derivedDataPath "${DERIVED_DATA_PATH:-$REPO_ROOT/build/DerivedData}" \
-  CODE_SIGN_IDENTITY=- \
-  build
+  -derivedDataPath "$repo_root/build" \
+  CODE_SIGNING_ALLOWED=NO build "$@"

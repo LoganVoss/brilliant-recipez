@@ -1,29 +1,28 @@
-# Xcode / SwiftPM generated output
+# Generated Xcode and Swift output
 .build/
 .swiftpm/
 build/
 DerivedData/
-*.xcuserstate
 xcuserdata/
+*.xcuserstate
 *.xcscmblueprint
 *.xccheckout
 *.xcresult/
 *.xcarchive/
 
-# Local credentials and signing material
+# Local credentials, signing, and packages
+Config/Signing.local.xcconfig
 .env
 .env.*
-!.env.example
 Secrets.xcconfig
-Config/Signing.local.xcconfig
 *.p12
 *.mobileprovision
 *.cer
-
-# Local packaging and OS/editor metadata
 *.zip
 *.ipa
+
+# Local working files
+work/
 .DS_Store
 .idea/
 .vscode/
-work/

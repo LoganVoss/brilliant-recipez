@@ -1,4 +1,3 @@
-// Shared project defaults. Add your own team in Signing.local.xcconfig,
-// or select a team in Xcode's Signing & Capabilities pane.
+// Choose your own team in Xcode, or use the ignored local configuration.
 DEVELOPMENT_TEAM =
 #include? "Signing.local.xcconfig"

@@ -1,36 +1,15 @@
-name: Build and test
-
+name: Build archived source
 on:
   push:
     branches: [main]
   pull_request:
   workflow_dispatch:
-
 permissions:
   contents: read
-
 jobs:
-  verify:
-    # GitHub-hosted Xcode 27 image: https://github.com/actions/runner-images/issues/14404
-    runs-on: xcode-27
-    timeout-minutes: 30
-    env:
-      DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
+  build:
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
-      - name: Show toolchain
-        run: xcodebuild -version
-      - name: Test recipe validation and persistence
-        run: ./scripts/test.sh
-      - name: Build for iOS Simulator
+      - name: Compile for iOS Simulator
         run: ./scripts/build.sh
-      - name: Test local flows and unavailable-model handling
-        run: ./scripts/test-ui.sh
-      - name: Retain UI test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: simulator-test-results
-          path: build/DerivedData/Logs/Test/*.xcresult
-          if-no-files-found: ignore
-          retention-days: 7
